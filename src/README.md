@@ -1,94 +1,32 @@
-## useContext
+## useReducer()
 
 ### 定义
 
-createContext 能够**创建**组件之间共享的上下文状态。然后通过 useContext 在组件中**使用**这些状态
+useState 的替代方案。**接收**一个形如 (state, action) => newState 的 reducer，并**返回**当前的 state 以及与其配套的 dispatch 方法。
+
+```typescript
+const [state, dispatch] = useReducer(reducer, initialState);
+```
 
 ### 场景
 
-现在有两个组件 Navbar 和 Messages，我们希望它们之间共享状态。
+结合 useContext 实现 Redux 组件间的共享状态管理
 
-```typescript
-<div className="App">
-  <Navbar/>
-  <Messages/>
-</div>
-```
+React 本身不提供状态管理功能，通常需要使用外部库。这方面最常用的库是 Redux。
 
-第一步就是使用 React Context API，在组件外部建立一个 Context。
+Redux 的核心概念是，组件发出 action 与状态管理器通信。状态管理器收到 action 以后，使用 Reducer 函数算出新的状态，Reducer 函数的形式是(state, action) => newState。
 
-```typescript
-const AppContext = React.createContext({});
-```
+React Hooks 的 useReducer/useContext 已经基本可以实现类似 Redux 的状态管理。
 
-组件封装代码如下
-
-```typescript
-<AppContext.Provider value={{
-  username: 'Hello'
-}}>
-  <div>
-    <Navbar/>
-    <Messages/>
-  </div>
-</AppContext.Provider>
-```
-
-上面代码中，`AppContext.Provider`提供了一个 Context 对象，这个对象可以被子组件共享。
-
-Navbar 组件的代码如下。
-
-```typescript
-export default function Messages() {
-	const {username} = React.useContext(AppContext)
-	return (
-		<div>
-			<h1>Navbar</h1>
-			<div>{username}</div>
-		</div>
-	)
-}
-```
-
-上面代码中，`useContext()`钩子函数用来引入 Context 对象，从中获取`username`属性。
-
-Message 组件的代码也类似。
-
-```typescript
-
-export default function Messages() {
-	const {username} = React.useContext(AppContext)
-	return (
-		<div>
-			<h1>Message</h1>
-			<div>{username}</div>
-		</div>
-	)
-}
-```
-
-![[Pasted image 20220322011636.png]]
-
-### 示例
-
-**createContext 用法**
-
-只需要一个defaultValue默认值参数，可不填。
-
-```typescript
-const MyContext = React.createContext(defaultValue)
-```
-
-**useContext 示例**
-
-比如上文中的例子，我们把显示计数器放到了一个叫 ExampleChild 的子组件中，然后创建一个全局CountContext来共享计数器，然后通过 CountContext.Provider 向子组件传递状态。
+在某些场景下，useReducer 会比 useState 更适用，例如 state 逻辑较复杂且包含多个子值，或者下一个 state 依赖于之前的 state 等。并且，使用 useReducer 还能给那些会触发深更新的组件做性能优化，因为你可以向子组件传递 dispatch 而不是回调函数 。
 
 ### 注意点
 
-`useContext` 的参数必须是 _context 对象本身_：
+React 会确保 `dispatch` 函数的标识是稳定的，并且不会在组件重新渲染时改变。这就是为什么可以安全地从 `useEffect` 或 `useCallback` 的依赖列表中省略 `dispatch`。
 
--   **正确：** `useContext(MyContext)`
--   **错误：** `useContext(MyContext.Consumer)`
--   **错误：** `useContext(MyContext.Provider)`
-- 
-调用了 `useContext` 的组件总会在 context 值变化时重新渲染。如果重渲染组件的开销较大，你可以 [通过使用 memoization 来优化](https://github.com/facebook/react/issues/15156#issuecomment-474590693)。
+### 跳过 dispatch
+
+如果 Reducer Hook 的返回值与当前 state 相同，React 将跳过子组件的渲染及副作用的执行。（React 使用 Object.is 比较算法 来比较 state。）
+
+需要注意的是，React 可能仍需要在跳过渲染前再次渲染该组件。不过由于 React 不会对组件树的“深层”节点进行不必要的渲染，所以大可不必担心。如果你在渲染期间执行了高开销的计算，则可以使用 useMemo 来进行优化。
+

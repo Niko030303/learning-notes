@@ -1,7 +1,5 @@
 import React from 'react'
 
-
-
 export default function Counter(props) {
 
   const { value, onIncrement, onDecrement } = props
